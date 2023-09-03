@@ -1,13 +1,13 @@
-import React from 'react';
-import { Component } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Searchbar } from './Searchbar/Searchbar';
 import { ImageGallery } from './ImageGallery/ImageGallery';
 import { Button } from './Button/Button';
 import { Modal } from './Modal/Modal';
 import { getImages } from 'components/search-api/search-api';
 import { Loader } from './Loader/Loader';
-import { NotificationContainer, NotificationManager } from 'react-notifications';
+// import { NotificationContainer, NotificationManager } from 'react-notifications';
 import 'react-notifications/lib/notifications.css';
+import { useNotification } from 'use-toast-notification';
 
 const COUNT_IN_PAGE = 12;
 
@@ -18,106 +18,84 @@ const Status = {
   REJECTED: 'rejected',
 };
 
-export class App extends Component {
-  constructor(props) {
-    super(props);
-    this.myApp = React.createRef();
-  }
+export function App() {
+  const myApp = useRef(null);
 
-  state = {
-    searchString: '',
-    items: [],
-    error: null,
-    page: 1,
-    totalCount: 0,
-    item: null,
-    status: Status.IDLE,
+  const notification = useNotification();
+
+  const [searchString, setSearchString] = useState('');
+  const [items, setItems] = useState([]);
+  // const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [item, setItem] = useState(null);
+  const [status, setStatus] = useState(Status.IDLE);
+
+  const handleSetSearchString = searchString => {
+    setSearchString(searchString);
+    setItems([]);
+    // setError(null);
+    setPage(1);
+    setTotalCount(0);
+    setItem(null);
+    setStatus(Status.IDLE);
   };
 
-  handleSetSearchString = searchString => {
-    this.setState({
-      searchString: searchString,
-      items: [],
-      error: null,
-      page: 1,
-      totalCount: 0,
-      item: null,
-      status: Status.IDLE,
-    });
+  const handleCloseModal = () => {
+    setItem(null);
   };
 
-  handleCloseModal = () => {
-    this.setState({ item: null });
+  const handleIncreasePage = () => {
+    setPage(page => page + 1);
   };
 
-  handleIncreasePage = () => {
-    this.setState(prev => {
-      return { page: prev.page + 1 };
-    });
+  const handleSetItem = item => {
+    setItem(item);
   };
 
-  handleSetItem = item => {
-    this.setState({ item });
-  };
+  useEffect(() => {
+    if (!searchString) return;
+    setStatus(Status.PENDING);
+    getImages(searchString, page, COUNT_IN_PAGE)
+      .then(resp => {
+        if (resp.data.totalHits === 0) return Promise.reject(new Error('No data for this search'));
 
-  componentDidUpdate(prevProp, prevState) {
-    if (prevState.searchString !== this.state.searchString || prevState.page !== this.state.page) {
-      this.setState({ status: Status.PENDING });
-
-      getImages(this.state.searchString, this.state.page, COUNT_IN_PAGE)
-        .then(resp => {
-          if (resp.data.totalHits === 0) return Promise.reject(new Error('No data for this search'));
-
-          this.setState(prev => {
-            return {
-              items: [...prev.items, ...resp.data.hits],
-              totalCount: resp.data.totalHits,
-              status: Status.RESOLVED,
-            };
-          });
-        })
-        .catch(error => {
-          this.setState({ status: Status.IDLE });
-          NotificationManager.error(error.message, 'Click me!', 3000, () => {});
+        setItems(items => [...items, ...resp.data.hits]);
+        setTotalCount(resp.data.totalHits);
+        setStatus(Status.RESOLVED);
+      })
+      .catch(error => {
+        notification.show({
+          message: error.message,
+          title: 'Error: ',
+          variant: 'error',
         });
-    }
+        setStatus(Status.IDLE);
+      });
 
-    // const height = Math.max(
-    //   document.body.scrollHeight,
-    //   document.body.offsetHeight,
-    //   document.documentElement.clientHeight,
-    //   document.documentElement.scrollHeight,
-    //   document.documentElement.offsetHeight
-    // );
-    // window.scrollTo(0, height);
+    window.scrollTo(0, myApp.current.scrollHeight);
+  }, [searchString, page]);
 
-    window.scrollTo(0, this.myApp.current.scrollHeight);
-  }
+  return (
+    <div
+      ref={myApp}
+      style={{
+        padding: '0 0 32px',
+      }}
+    >
+      <Searchbar onSearch={handleSetSearchString} />
 
-  render() {
-    return (
-      <div
-        ref={this.myApp}
-        style={{
-          padding: '0 0 32px',
-        }}
-      >
-        <Searchbar onSearch={this.handleSetSearchString} />
+      <ImageGallery items={items} onClick={handleSetItem} />
 
-        <ImageGallery items={this.state.items} onClick={this.handleSetItem} />
+      {status === Status.RESOLVED && totalCount > COUNT_IN_PAGE && page * COUNT_IN_PAGE < totalCount && (
+        <Button onClick={handleIncreasePage} />
+      )}
 
-        {this.state.status === Status.RESOLVED &&
-          this.state.totalCount > COUNT_IN_PAGE &&
-          this.state.page * COUNT_IN_PAGE < this.state.totalCount && <Button onClick={this.handleIncreasePage} />}
+      {status === Status.PENDING && <Loader />}
 
-        {this.state.status === Status.PENDING && <Loader />}
+      {item && status === Status.RESOLVED && <Modal onClose={handleCloseModal} item={item} />}
 
-        {this.state.item && this.state.status === Status.RESOLVED && (
-          <Modal onClose={this.handleCloseModal} item={this.state.item} />
-        )}
-
-        <NotificationContainer />
-      </div>
-    );
-  }
+      {/* <NotificationContainer /> */}
+    </div>
+  );
 }

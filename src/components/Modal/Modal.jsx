@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Overlay, ModalForm, Image, Close } from './Modal.styled';
 import { IconContext } from 'react-icons';
@@ -6,40 +6,40 @@ import { AiFillCloseCircle } from 'react-icons/ai';
 
 const modalRoot = document.querySelector('#modal-root');
 
-export class Modal extends Component {
-  keydownListener = e => {
-    if (e.code === 'Escape') {
-      this.props.onClose();
-    }
-  };
+export function Modal({ onClose, item }) {
+  const keydownListener = useCallback(
+    e => {
+      if (e.code === 'Escape') {
+        onClose();
+      }
+    },
+    [onClose]
+  );
 
-  clickBackDrop = e => {
+  const clickBackDrop = e => {
     if (e.target === e.currentTarget) {
-      this.props.onClose();
+      onClose();
     }
   };
 
-  componentDidMount() {
-    window.addEventListener('keydown', this.keydownListener);
-  }
+  useEffect(() => {
+    window.addEventListener('keydown', keydownListener);
+    return () => {
+      window.removeEventListener('keydown', keydownListener);
+    };
+  }, [keydownListener]);
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.keydownListener);
-  }
-
-  render() {
-    return createPortal(
-      <Overlay className="overlay" onClick={this.clickBackDrop}>
-        <Close type="button" onClick={this.props.onClose}>
-          <IconContext.Provider value={{ size: 32 }}>
-            <AiFillCloseCircle />
-          </IconContext.Provider>
-        </Close>
-        <ModalForm className="modal">
-          <Image src={this.props.item.largeImageURL} alt="this.props.item.tags" />
-        </ModalForm>
-      </Overlay>,
-      modalRoot
-    );
-  }
+  return createPortal(
+    <Overlay className="overlay" onClick={clickBackDrop}>
+      <Close type="button" onClick={onClose}>
+        <IconContext.Provider value={{ size: 32 }}>
+          <AiFillCloseCircle />
+        </IconContext.Provider>
+      </Close>
+      <ModalForm className="modal">
+        <Image src={item.largeImageURL} alt={item.tags} />
+      </ModalForm>
+    </Overlay>,
+    modalRoot
+  );
 }
