@@ -5,9 +5,8 @@ import { Button } from './Button/Button';
 import { Modal } from './Modal/Modal';
 import { getImages } from 'components/search-api/search-api';
 import { Loader } from './Loader/Loader';
-// import { NotificationContainer, NotificationManager } from 'react-notifications';
-import 'react-notifications/lib/notifications.css';
-import { useNotification } from 'use-toast-notification';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const COUNT_IN_PAGE = 12;
 
@@ -21,11 +20,8 @@ const Status = {
 export function App() {
   const myApp = useRef(null);
 
-  const notification = useNotification();
-
   const [searchString, setSearchString] = useState('');
   const [items, setItems] = useState([]);
-  // const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [item, setItem] = useState(null);
@@ -65,11 +61,7 @@ export function App() {
         setStatus(Status.RESOLVED);
       })
       .catch(error => {
-        notification.show({
-          message: error.message,
-          title: 'Error: ',
-          variant: 'error',
-        });
+        toast.error(error.message);
         setStatus(Status.IDLE);
       });
 
@@ -95,7 +87,7 @@ export function App() {
 
       {item && status === Status.RESOLVED && <Modal onClose={handleCloseModal} item={item} />}
 
-      {/* <NotificationContainer /> */}
+      <ToastContainer />
     </div>
   );
 }
